@@ -278,7 +278,6 @@ module Editors
         end
       end
 
-
       def move_cursor_left(x)
         new_x = current_x - x
         new_x = 1 if new_x < 1
@@ -332,7 +331,7 @@ module Editors
             [clear_screen,
               header,
               buffer.to_s(@buffer_top,@viewport_height),
-              update_cursor_position].to_s
+              update_cursor_position].join("")
           else
             ""
           end
