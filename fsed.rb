@@ -158,33 +158,13 @@ module Editors
         buff_out.join("").chomp
       end
 
-      #  def display
-      #	     i = 0
-      #        @buffer.collect { |line| i = i + 1
-      #      if line.nil?
-      #      "#{i}: \n"
-      #  else
-      #   "#{i}: " << [  line.collect { |char|
-      #    if char.nil?
-      #     " "
-      #   else
-      #      char
-      #    end
-      #   }, "\n" ].to_s
-      #   end
-      #  }.to_s.chomp
-      #end
-
       def to_s(top_start,vp_height)
-        out = String.new
-        top_stop = @buffer.length - 1
-        top_stop = vp_height + top_start - 1 if @buffer.length - 1 >= vp_height + top_start
+        # see if we have enough lines in to print the whole buffer
+        top_stop = [@buffer.length - 1, vp_height + top_start - 1].min
 
-        for i in top_start..top_stop
-          one_line = @buffer[i].to_s
-          out = out+ one_line + "\n"
-        end
-        out
+        (top_start .. top_stop).map {|i|
+          str_of_line(@buffer[i]) + "\n"
+        }.join("")
       end
 
       def room_on_line(y,str,width)
