@@ -17,7 +17,7 @@ module Editors
 
     class Buffer
       def initialize(max_lines,in_file)
-        @buffer = getfile(in_file)
+        @buffer = readfile(in_file)
         @max_lines = max_lines
       end
 
@@ -178,21 +178,16 @@ module Editors
         return room
       end
 
-      def getfile(filename)
-        file_array = []
-        if !filename.nil? then
-          #this used to use chars.to_a but it didn't always work right
-          if File.exists?(filename) 
-            IO.foreach(filename) { |line|
-              line.gsub!(/[\n\r]/,"")
-              build = []
-              for i in 0..line.length-1
-                build << line[i].chr
-              end
-              file_array << build}
-          end
+      def readfile(filename)
+        # if the filename is invalid, return an empty buffer rather than complain
+        unless filename and File.exists?(filename)
+          return []
         end
-        puts
+        file_array = []
+        IO.foreach(filename) {|line|
+          line.gsub!(/[\n\r]/,"")
+          file_array << line.split(//)
+        }
         file_array
       end
     end
