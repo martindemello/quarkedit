@@ -22,9 +22,7 @@ module Editors
       end
 
       def []=(x, y, value)
-        if @buffer[y - 1] == nil
-          @buffer[y - 1] = []
-        end
+        @buffer[y - 1] ||= []
         @buffer[y - 1][x - 1] = value
       end
 
@@ -51,7 +49,6 @@ module Editors
       end
 
       def insert_at_line(y,x,in_str)
-        inthing = nil 
         if !in_str.nil? then
           in_str.each_with_index {|c,i| @buffer[y-1].insert(x+ i,c)} 
         end
@@ -67,7 +64,6 @@ module Editors
       end
 
       def buffer_length
-
         return @buffer.length
       end
 
@@ -111,7 +107,6 @@ module Editors
       end 
 
       def paragraph_up(start_y,width)
-
         for i in start_y..@buffer.length #- 1
           break if @buffer[i,0].nil? 
           pos = length_y(i-1)
@@ -140,13 +135,7 @@ module Editors
 
       def line(line)
         if !@buffer[line - 1].nil? then  #protect against backspace on an empty line -- produces a nil
-          @buffer[line - 1].collect { |char|
-            if char.nil?
-              " "
-            else
-              char
-            end
-          }.to_s.chomp
+          @buffer[line - 1].collect {|char| char.nil? ? " " : char}.to_s.chomp
         end
       end
 
@@ -228,8 +217,7 @@ module Editors
           #this used to use chars.to_a but it didn't always work right
           if File.exists?(filename) 
             IO.foreach(filename) { |line|
-              line.gsub!("\n","")
-              line.gsub!("\r","")  
+              line.gsub!(/[\n\r]/,"")
               build = []
               for i in 0..line.length-1
                 build << line[i].chr
