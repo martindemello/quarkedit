@@ -57,24 +57,24 @@ module Editors
         end
       end
 
-      def insert_at(y,x,in_str)
-        if !in_str.nil? then
-          in_str.each_with_index {|c,i| row(y).insert(x+ i,c)}
+      def insert_at(y, x, chars)
+        if chars
+          row(y).insert(x, chars).flatten!
         end
       end
 
-      def insert_line(y, str)
+      def insert_line(y, chars)
         ensure_row(y)
-        @buffer.insert(y, str)
+        @buffer.insert(y, chars)
       end
 
       def delete_line_at(y)
         @buffer.delete_at(y - 1)    
       end
 
-      def split_line_at(x, y)
-        str = del_range(y, x, line_length(y))
-        insert_line(y, str)
+      def split_line_at(y, x)
+        chars = delete_to_end(y, x)
+        insert_line(y, chars)
       end
 
       def buffer_length
@@ -96,16 +96,12 @@ module Editors
       end
 
       def delete_to_end(y, x)
-        row(y).slice(x..-1)
+        row(y).slice!(x..-1)
       end
 
       def insert_char(x, y, value)
         ensure_row(y)
-        if (x-1) > row(y).length then
-          row(y) << value
-        else
-          row(y).insert(x-1,value)
-        end
+        row(y).insert(x-1,value)
       end
 
       def find_first_space(y)
@@ -404,12 +400,13 @@ module Editors
 
       def newline
         l = current_line
+        x = current_x - 1
         if @buffer.line_length(l) == 0 then
           @buffer.insert_line(l, nil)
           move_cursor_down(1)
         else
-          @buffer.split_line_at(l, current_x)
-          move_cursor_left(current_x)
+          @buffer.split_line_at(l, x)
+          move_cursor_left(x)
           move_cursor_down(1)
         end
         @dirty = true
