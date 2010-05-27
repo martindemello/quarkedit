@@ -21,16 +21,25 @@ module Editors
         @max_lines = max_lines
       end
 
-      def []=(x, y, value)
+      def row(y)
+        # indexing rows from 1
+        @buffer[y - 1]
+      end
+
+      def ensure_row(y)
         @buffer[y - 1] ||= []
-        @buffer[y - 1][x - 1] = value
+      end
+
+      def []=(x, y, value)
+        ensure_row(y)
+        row(y)[x - 1] = value
       end
 
       def [](x, y)
-        if @buffer[y - 1].nil?
+        if row(y).nil?
           nil
         else
-          @buffer[y - 1][x - 1]
+          row(y)[x - 1]
         end
       end
 
@@ -43,19 +52,19 @@ module Editors
       end
 
       def delete_at(x, y)
-        unless @buffer[y - 1].nil?
-          @buffer[y - 1].slice!(x - 1)  # used to use delete_at but that didn't always work.  
+        if row(y)
+          row(y).slice!(x - 1)  # used to use delete_at but that didn't always work.
         end
       end
 
       def insert_at_line(y,x,in_str)
         if !in_str.nil? then
-          in_str.each_with_index {|c,i| @buffer[y-1].insert(x+ i,c)} 
+          in_str.each_with_index {|c,i| row(y).insert(x+ i,c)}
         end
       end
 
       def insert_line_at(y,ln)
-        @buffer[y] = []  if @buffer[y] == nil
+        ensure_row(y)
         @buffer.insert(y,ln)   
       end
 
@@ -68,8 +77,8 @@ module Editors
       end
 
       def length_y(y)
-        if !@buffer[y - 1].nil?
-          return @buffer[y - 1].length
+        if row(y)
+          return row(y).length
         else
           return 0
         end
@@ -77,28 +86,28 @@ module Editors
 
       def del_range(y,x1,x2)
         total = x2 - x1
-        str = @buffer[y-1].slice!(-(total),total)
+        str = row(y).slice!(-(total),total)
         return str
       end
 
       def insert_char(x, y, value)
-        @buffer[y - 1] = []  if @buffer[y - 1] == nil
-        if (x-1) > @buffer[y-1].length then
-          @buffer[y-1] << value
+        ensure_row(y)
+        if (x-1) > row(y).length then
+          row(y) << value
         else
-          @buffer[y - 1].insert(x-1,value)
+          row(y).insert(x-1,value)
         end
       end
 
       def find_first_space(y)
-        return @buffer[y-1].index(" ")
+        return row(y).index(" ")
       end
 
       def find_nearest_space(y,space)
         result = nil
-        @buffer[y - 1] = [] if @buffer[y - 1].nil? 
+        ensure_row(y)
         highest = 0
-        @buffer[y-1].each_with_index {|c,i| 
+        row(y).each_with_index {|c,i|
           highest = i
           result = i	 if (c == " ") and (i <= space) 
         }
@@ -120,37 +129,29 @@ module Editors
 
       def detect_and_wrap(y,x,width)
         l_space = 0; wrap = nil
-        @buffer[y - 1] = [] if @buffer[y - 1].nil? 
-        l  = @buffer[y-1].length - 1
-        test = @buffer[y-1]
+        ensure_row(y)
+        l  = row(y).length - 1
+        test = row(y)
 
-        if !@buffer[y-1][width].nil? then #is there now a character past max_width
+        if !row(y)[width].nil? then #is there now a character past max_width
           test.slice!(-1)  if test.last == " "
           l_space = test.rindex(' ') 
-          wrap = @buffer[y-1][l_space..l]
+          wrap = row(y)[l_space..l]
           del_range(y,l_space+1,l+1)
           return [l_space,wrap]
         end
       end
 
       def str_of_line(line)
-        line.collect {|c| c.nil? ? " " : c}.join("").chomp
+        line ? line.collect {|c| c.nil? ? " " : c}.join("").chomp : ""
       end
 
       def line(line)
-        if !@buffer[line - 1].nil? then  #protect against backspace on an empty line -- produces a nil
-          str_of_line(@buffer[line - 1])
-        end
+        str_of_line(row(line))
       end
 
       def buff_out
-        @buffer.collect { |line|
-          if line.nil?
-            "\n"
-          else
-            str_of_line(line) + "\n"
-          end
-        }
+        @buffer.collect {|line| str_of_line(line) + "\n" }
       end
 
       def dump
