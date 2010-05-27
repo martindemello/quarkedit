@@ -57,26 +57,31 @@ module Editors
         end
       end
 
-      def insert_at_line(y,x,in_str)
+      def insert_at(y,x,in_str)
         if !in_str.nil? then
           in_str.each_with_index {|c,i| row(y).insert(x+ i,c)}
         end
       end
 
-      def insert_line_at(y,ln)
+      def insert_line(y, str)
         ensure_row(y)
-        @buffer.insert(y,ln)   
+        @buffer.insert(y, str)
       end
 
       def delete_line_at(y)
         @buffer.delete_at(y - 1)    
       end
 
+      def split_line_at(x, y)
+        str = del_range(y, x, line_length(y))
+        insert_line(y, str)
+      end
+
       def buffer_length
         return @buffer.length
       end
 
-      def length_y(y)
+      def line_length(y)
         if row(y)
           return row(y).length
         else
@@ -88,6 +93,10 @@ module Editors
         total = x2 - x1
         str = row(y).slice!(-(total),total)
         return str
+      end
+
+      def delete_to_end(y, x)
+        row(y).slice(x..-1)
       end
 
       def insert_char(x, y, value)
@@ -118,27 +127,38 @@ module Editors
       def paragraph_up(start_y,width)
         for i in start_y..@buffer.length #- 1
           break if @buffer[i,0].nil? 
-          pos = length_y(i-1)
+          pos = line_length(i-1)
           space = width - pos #how much space on the line above?
           unwrap_space = find_nearest_space(i,space)
           break if unwrap_space.nil? or unwrap_space == 0
           unwrap_str = del_range(i,0,unwrap_space+1)
-          insert_at_line(i - 1,pos,unwrap_str)
+          insert_at(i - 1,pos,unwrap_str)
         end
       end
 
-      def detect_and_wrap(y,x,width)
-        l_space = 0; wrap = nil
+      def wrap_to_width(y, width)
         ensure_row(y)
-        l  = row(y).length - 1
-        test = row(y)
+        line = row(y)
 
-        if !row(y)[width].nil? then #is there now a character past max_width
-          test.slice!(-1)  if test.last == " "
-          l_space = test.rindex(' ') 
-          wrap = row(y)[l_space..l]
-          del_range(y,l_space+1,l+1)
-          return [l_space,wrap]
+        if line[width] then # is there a character past max_width
+          # if there is a space, break on it, else break the line arbitrarily
+          # at _width_ ( TODO: add hyphenation if this happens )
+          l_space = line[0..width].rindex(' ')
+
+          if !l_space
+            l_space = width - 1
+          end
+          wrap = delete_to_end(y, l_space + 1)
+
+          # if we are on the last row, add a row for the spillover,
+          # otherwise prepend to the next row and cascade-wrap
+          if y == buffer_length
+            insert_line(y, wrap)
+          else
+            insert_at(y + 1, 0, wrap)
+            wrap_to_width(y + 1, width)
+          end
+          return wrap.length # so we know where to move the cursor
         end
       end
 
@@ -231,6 +251,13 @@ module Editors
         @current_cursor_position[1]
       end
 
+      def current_line
+        current_y + @buffer_top
+      end
+
+      def line_end
+        @buffer.line_length(current_line) - 1
+      end
 
       def place_cursor(x, y)
         @previous_cursor_position = @current_cursor_position
@@ -269,7 +296,7 @@ module Editors
       end
 
       def page_down
-        down = @buffer.buffer_length - (current_y+ @buffer_top)  
+        down = @buffer.buffer_length - current_line
         if down > @viewport_height then 
           redraw = move_cursor_down(@viewport_height)
           return redraw
@@ -295,7 +322,7 @@ module Editors
       end
 
       def end_cursor
-        end_line = @buffer.length_y(current_y)+1
+        end_line = @buffer.line_length(current_y)+1
         end_line = @viewport_width if end_line > @viewport_width
         place_cursor(end_line,current_y)
       end 
@@ -318,7 +345,7 @@ module Editors
         out_str = "OVR" if !@insert
         out = String.new
         out << parse_c("%WQuark%YEDIT #{VERSION}%W".fit(79)) +"\n"
-        out << parse_c("%YCTRL + e%YX%Wit %Y|%W %YG%W Help %Y|%W %YS%Wave %Y|%W %YN%Wewline %Y|%W %YY%W Delete %Y|%W #{out_str} %Y|%W Line: #{current_y + @buffer_top}".fit(79)) << "\n" 
+        out << parse_c("%YCTRL + e%YX%Wit %Y|%W %YG%W Help %Y|%W %YS%Wave %Y|%W %YN%Wewline %Y|%W %YY%W Delete %Y|%W #{out_str} %Y|%W Line: #{current_line}".fit(79)) << "\n"
         out << bg("black") << fg("WHITE")
         return out
       end
@@ -339,76 +366,42 @@ module Editors
         @buffer.clear
       end
 
-      # this is complicated... too complicated...
-
       def input_char_at_cursor(c)
-        if @insert then                                        #we are in insert mode
-          @buffer.insert_char(current_x,(current_y) + @buffer_top,c)
-          l_space,wrap = @buffer.detect_and_wrap(current_y,current_x,@screen_width - 1)
-          if !wrap.nil? then
-            if !(current_x < @buffer.length_y(current_y) - 1) then    #no wrap... insert a character
-              if (current_x + wrap.length) < @screen_width  then
-                move_cursor_right(1)
-                return [c,NO_REDRAW]
-              else                                                           #wrap at insert at end of line
-                @buffer.insert_line_at(current_y,wrap.to_s.strip!)
-                home_cursor
-                move_cursor_right(wrap.length - 1)
-                move_cursor_down(1)
-              end
-              $lf.print "I'm here...wrap line\n"
-              return [nil,REDRAW]        #we don't want a character printed because we are in overflow
-            end
-
-            $lf.print "@buffer.length + wrap.length: #{@buffer.length_y(current_y) +(wrap.length + 2)}\n"
-            $lf.print "@screen_width: #{@screen_width}\n"
-            $lf.print "room on line: #{@buffer.room_on_line(current_y + 1,wrap,@screen_width)}\n"
-            $lf.print "@buffer.length: #{@buffer.length}\n"
-            if (@buffer.length_y(current_y) + (wrap.length + 2)) >= @screen_width then #wrap for insert not at end of line
-              $lf.print "in insert not at end of line...\n"
-              if @buffer.room_on_line(current_y + 1,wrap,@screen_width) then	   
-
-                @buffer.insert_at_line(current_y+1,0,wrap)  #subsequent words go to next line
-
-                $lf.print "on next existing line...\n"
-              else
-
-                @buffer.insert_line_at(current_y,wrap) #out of room so make a new line
-
-                $lf.print "on a new line...\n"
-              end
-              move_cursor_right(1)
-              $lf.print "done with insert before line\n"
-              return [c,REDRAW]
-            end
-          end
-          move_cursor_right(1)  #redraw because we are inserting...
-          if (@buffer.length_y(current_y)+1) == current_x then
-            return [c,NO_REDRAW]     #insert mode at eol so no redraw
-          else
-            return [c,REDRAW] #insert mode not at eol, so redraw
-          end
-
-        else
-          if current_x < @screen_width then
-            @buffer[current_x,(current_y) + @buffer_top] = c    #we are in over-write mode....
+        # are we in insert or overwrite mode?
+        if @insert then
+          @buffer.insert_char(current_x, current_line, c)
+          split_pos, wrap = @buffer.wrap_to_width(current_line, @screen_width - 1)
+          if !wrap then
             move_cursor_right(1)
-            $lf.print "Overwrite Mode\n"
             return [c,NO_REDRAW]
           else
-            $lf.print "I'm here...sixth return\n"
+            # move to the end of the wrapped portion
+            home_cursor
+            move_cursor_down(1)
+            move_cursor_right(wrap)
+            # we don't want a character printed because we are in overflow
+            return [nil,REDRAW]
+          end
+        else # overwrite mode
+          if current_x < @screen_width then
+            @buffer[current_x, current_line] = c
+            move_cursor_right(1)
+            return [c,NO_REDRAW]
+          else
+            home_cursor
+            move_cursor_down(1)
             return [nil,NO_REDRAW]
           end
         end
       end
 
       def newline
-        if @buffer.length_y(current_y) == 0 then
-          @buffer.insert_line_at(current_y,nil)  
+        l = current_line
+        if @buffer.line_length(l) == 0 then
+          @buffer.insert_line(l, nil)
           move_cursor_down(1)
         else
-          str = @buffer.del_range(current_y,current_x-1,@buffer.length_y(current_y))
-          @buffer.insert_line_at(current_y,str)
+          @buffer.split_line_at(l, current_x)
           move_cursor_left(current_x)
           move_cursor_down(1)
         end
@@ -425,14 +418,14 @@ module Editors
           @buffer.delete_at(current_x, current_y)
         else
           if current_y > 1 then                         # delete at BOL
-            if @buffer.length_y(current_y-1) == 0 then   #blank line above
+            if @buffer.line_length(current_y-1) == 0 then   #blank line above
               @buffer.delete_line_at(current_y-1)
               move_cursor_up(1)
             else
               @buffer.paragraph_up(current_y,@screen_width)   #move up until you hit a blank line...
               move_cursor_up(1)
               home_cursor
-              move_cursor_right(@buffer.length_y(current_y))
+              move_cursor_right(@buffer.line_length(current_y))
             end
             return REDRAW
           end
