@@ -16,8 +16,8 @@ module Editors
     RETURN = 10.chr
 
     class Buffer
-      def initialize(max_lines,in_file)
-        @buffer = readfile(in_file)
+      def initialize(max_lines, in_file)
+        read_from_file(in_file)
         @max_lines = max_lines
       end
 
@@ -198,16 +198,23 @@ module Editors
         return room
       end
 
-      def readfile(filename)
+      def read_from_io(io)
+        @buffer = []
+        io.each {|line|
+          line.gsub!(/[\n\r]/,"")
+          @buffer << line.split(//)
+        }
+      end
+
+      def read_from_file(filename)
         # if the filename is invalid, return an empty buffer rather than complain
         unless filename and File.exists?(filename)
           return []
         end
-        file_array = []
-        IO.foreach(filename) {|line|
-          line.gsub!(/[\n\r]/,"")
-          file_array << line.split(//)
-        }
+        file_array = nil
+        File.open(filename, 'r') do |f|
+          file_array = read_from_io(f)
+        end
         file_array
       end
     end
