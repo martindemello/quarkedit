@@ -133,9 +133,13 @@ module Editors
         end
       end
 
+      def str_of_line(line)
+        line.collect {|c| c.nil? ? " " : c}.join("").chomp
+      end
+
       def line(line)
         if !@buffer[line - 1].nil? then  #protect against backspace on an empty line -- produces a nil
-          @buffer[line - 1].collect {|char| char.nil? ? " " : char}.to_s.chomp
+          str_of_line(@buffer[line - 1])
         end
       end
 
@@ -144,31 +148,13 @@ module Editors
           if line.nil?
             "\n"
           else
-            [ line.collect { |char|
-              if char.nil?
-                " "
-              else
-                char
-              end
-            }, "\n" ].to_s
+            str_of_line(line) + "\n"
           end
         }
       end
 
       def dump
-        @buffer.collect { |line|
-          if line.nil?
-            "\n"
-          else
-            [ line.collect { |char|
-              if char.nil?
-                " "
-              else
-                char
-              end
-            }, "\n" ].to_s
-          end
-        }.to_s.chomp
+        buff_out.join("").chomp
       end
 
       #  def display
