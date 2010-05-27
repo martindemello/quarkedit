@@ -7,6 +7,8 @@
 # $Id: fsed.rb,v 1.1 2002/09/12 12:27:16 dossy Exp $
 #
 
+require 'term/ansicolor'
+
 module Editors
   module FSED
     VERSION = "0.75"
@@ -506,73 +508,29 @@ module Editors
         return @c.reset
       end
 
-      def fg(forground)
-
-        out = String.new
-
-        case forground
-        when "red"
-          out =  "[31m"
-        when "RED"
-          out  = "[;1;31m"
-        when "green"
-          out << "[32m"
-        when "GREEN"
-          out = "[;1;32m"
-        when "blue"
-          out  = "[34m"
-        when "BLUE"
-          out = "[;1;34m"
-        when "cyan"
-          out = "[36m"
-        when "CYAN"
-          out = "[;1;36m"
-        when "magenta"
-          out = "[35m"
-        when "MAGENTA"
-          out = "[;1;35m"
-        when "yellow"
-          out = "[33m"
-        when "YELLOW"
-          out = "[;1;33m"
-        when "black"
-          out = "[30m"
-        when "BLACK"
-          out = "[;1;30m"
-        when "hide"
-          out = "[?25l"
-        when "show"
-          out = "[?25h"
-        when "reset"
-          out = "[0m"
-
+      def fg(col)
+        t = Term::ANSIColor
+        case col
+        when %w(red green blue cyan magenta yellow black reset)
+          return t.send col
+        when %w(RED GREEN BLUE CYAN MAGENTA YELLOW BLACK)
+          return t.bold + t.send(col.downcase)
+        when 'hide'
+          return "\e[?25l"
+        when 'show'
+          return "\e[?25h"
+        else
+          return ""
         end
-        return out
       end
 
-      def bg(background)
-
-        out = String.new
-
-        case background
-        when "red"
-          out =  "[41m"
-        when "green"
-          out = "[42m"
-        when "blue"
-          out  = "[44m"
-        when "cyan"
-          out = "[46m"
-        when "magenta"
-          out = "[45m"
-        when "yellow"
-          out = "[43m"
-        when "black"
-          out = "[40m"
-        when "white"
-          out = "[47m"
+      def bg(col)
+        t = Term::ANSIColor
+        if %w(red green blue cyan magenta yellow black).include? col
+          return t.send("on_#{col}")
+        else
+          return ""
         end
-        return out
       end
 
       def center(string,width,color)
