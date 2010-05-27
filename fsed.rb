@@ -324,17 +324,12 @@ module Editors
       end
 
       def redraw(force)
-        @dirty = true if force
-        if @dirty
+        if force or @dirty
           @dirty = false
-          if force
-            [clear_screen,
-              header,
-              buffer.to_s(@buffer_top,@viewport_height),
-              update_cursor_position].join("")
-          else
-            ""
-          end
+          [clear_screen,
+            header,
+            buffer.to_s(@buffer_top,@viewport_height),
+            update_cursor_position].join("")
         else
           ""
         end
