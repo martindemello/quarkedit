@@ -31,7 +31,8 @@ def tcsetattr(io, attr)
   io.ioctl(_TCSETA, attr)
 end
 
-def writefile (filename,array)
+def writefile(filename, array)
+  return unless filename
   lf = File.new(filename, File::WRONLY|File::TRUNC|File::CREAT, 0644)
   array.each {|x|
     print "."  
