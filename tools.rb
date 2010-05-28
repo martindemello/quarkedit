@@ -1,5 +1,3 @@
-require 'withindex.rb'
-
 def default(inp, d)
   (yield inp) ? inp : d
 end
@@ -47,6 +45,6 @@ class Array
   end
 
   def formatrow(widths)
-    map_with_index {|a,i| (a.to_s).fit(widths[i])}.join
+    each_with_index.map {|a,i| (a.to_s).fit(widths[i])}.join
   end
 end
