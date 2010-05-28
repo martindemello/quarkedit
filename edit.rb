@@ -44,7 +44,7 @@ end
 def pull_apart_args(args)
   bbs_mode = false
   filename = nil
-  if !args.nil then
+  if !args.nil? then
     filename = args.last
     args.each {|arg| 
       bbs_mode = true if arg == "-L" 

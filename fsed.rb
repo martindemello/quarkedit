@@ -19,6 +19,7 @@ module Editors
       def initialize(max_lines, in_file)
         read_from_file(in_file)
         @max_lines = max_lines
+        @buffer = []
       end
 
       def row(y)
